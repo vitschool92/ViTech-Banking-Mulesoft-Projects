@@ -1,0 +1,52 @@
+#%RAML 1.0
+title: vitech-bank-cust-acct-LockUnlock
+description: "This api is used to Admin for to Lock/Unlock the accounts"
+version: v1
+protocols:
+  - HTTPS
+  - HTTP
+ 
+securitySchemes:
+  secure: !include /Security/securityScheme.raml
+    
+types:
+  input: !include /DataTypes/InputPropertiesLockUnlock.raml
+  
+securedBy:
+  - secure 
+/AcctLockUnLock:
+  put:
+    body:
+      application/json:
+        type: input
+        example: !include /Examples/Request/InpRequestLockUnlockexample.raml
+     
+    responses:
+        200:
+          body:
+            application/json:
+              example:
+                !include /Examples/Response/Lockunlcokresponse.raml
+/getLockedAccts:
+  get:
+    queryParameters:
+      bank:
+        required: true
+        enum:
+          - HDFC
+          - AXIS 
+          - SBI 
+          - ICICI
+      acctStatus:
+         required: true 
+         enum:
+           - Locked
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              !include /Examples/Response/LockedAccounts.raml
+              
+                     
+                

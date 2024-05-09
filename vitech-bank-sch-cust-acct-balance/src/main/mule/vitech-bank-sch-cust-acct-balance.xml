@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="ffe5d5c2-6c44-44be-841f-ef5ad94388c5" >
+		<snowflake:snowflake-connection accountName="${db.sfc.accountname}" warehouse="${db.sfc.warehouse}" database="${db.sfc.database}" schema="${db.sfc.schema}" user="${db.sfc.user}" password="${db.sfc.password}" role="${db.sfc.role}" />
+	</snowflake:snowflake-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="f2c9237e-aa9d-4c61-a836-02c3e5b8bee0" file="myConfig-dev.yaml" />
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="941ab25e-2c17-4121-ae67-fe34bb511f2b" >
+		<email:smtp-connection host="${email.config.host}" port="${email.config.port}" user="${email.config.user}" password="${email.config.password}" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<flow name="vitech-bank-sch-cust-acct-balanceFlow" doc:id="e8262e0e-8efd-455b-b336-c4908cc10f92" >
+		<scheduler doc:name="Scheduler" doc:id="f0132a11-695a-40a3-8318-6186c9c1a3ad" >
+			<scheduling-strategy >
+				<cron expression="0 30 13 ? * *" />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="5e90b254-d74c-4972-b00c-3a701f307bd1" message="--------------------Batch job is started --------------------"/>
+		<snowflake:select doc:name="Select" doc:id="dcf66646-dbde-4e55-8c6b-3ee60f73f88f" config-ref="Snowflake_Config">
+			<snowflake:sql ><![CDATA[select * from bank_transactions]]></snowflake:sql>
+		</snowflake:select>
+		<ee:transform doc:name="Transform Message" doc:id="47146f80-507c-4a7c-95ef-704881a03df0">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		<foreach doc:name="For Each" doc:id="7e94cc0a-f349-4163-9303-d16016cc5d4f" >
+			<logger level="INFO" doc:name="Logger" doc:id="0af83835-ec63-483c-b448-62882c097db3" message="-----------------Before sending an email ------------"/>
+			<set-variable value='#["Your total Balance as on Today is- "++ payload.TOTALBALANCE]' doc:name="emailBody" doc:id="908e56cf-3f0e-42b4-ab8b-1fb66f360083" variableName="emailBody"/>
+			<set-variable value="#[payload.MAILID]" doc:name="email" doc:id="c062bb4b-af22-4206-8908-90f092dcdb2a" variableName="email"/>
+			<set-variable value="#[payload.BANKNAME]" doc:name="bank" doc:id="e524c7a8-f341-46b9-afc9-1dc5acfc723e" variableName="bank" />
+			<parse-template doc:name="Parse Template" doc:id="25156dcb-f8d6-4817-977e-df68267e8449">
+				<content >&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+&lt;head&gt;
+	&lt;title&gt;
+		HTML table border Attribute
+	&lt;/title&gt;
+	&lt;style&gt;
+		body {
+			text-align: center;
+		}
+
+		table {
+			margin: 0 auto;
+			height: 20vh;
+			width: 40vh;
+		}
+
+		h1 {
+			color: green;
+		}
+        h5 {
+			color: red;
+		}
+	&lt;/style&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+	&lt;h1&gt;Welcome to VITech Talks&lt;/h1&gt;
+	&lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+    &lt;a href=&quot;https://www.youtube.com/@vitechtalks6017&quot; target=&quot;_blank&quot;&gt;Visit VITechTalks!&lt;/a&gt; 
+    &lt;h5&gt;NOTE: This is an automated email please do not reply to this email&lt;/h5&gt;
+	
+&lt;/body&gt;
+
+&lt;/html&gt;
+</content>
+			</parse-template>
+			<email:send doc:name="Email Send" doc:id="e7fc6590-a54b-4486-8172-ee2508f447a7" config-ref="Email_SMTP" subject='#["Todays Total Balance! in " ++ vars.bank]'>
+				<email:to-addresses >
+					<email:to-address value="#[vars.email]" />
+				</email:to-addresses>
+				<email:body contentType="text/html" encoding="UTF-8">
+				</email:body>
+			</email:send>
+			<logger level="INFO" doc:name="Logger" doc:id="98c72d33-4af9-4741-934d-3d75f15c3895" message="----------Email Sent for the user -----#[vars.email]"/>
+		</foreach>
+	</flow>
+</mule>

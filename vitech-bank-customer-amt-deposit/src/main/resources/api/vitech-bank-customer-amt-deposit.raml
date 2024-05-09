@@ -1,0 +1,51 @@
+#%RAML 1.0
+title: vitech-bank-customer-amt-deposit
+version: v1
+protocols:
+  - HTTP
+  - HTTPS
+
+mediaType: application/json
+securitySchemes:
+  secure: !include /security/securityScheme.raml
+
+securedBy:
+  - secure
+/deposit:
+  put:
+    body:
+      properties:
+        accountNum:
+          required: true
+          type: string
+          minLength: 10
+          maxLength: 10
+        bank:
+          required: true
+          enum:
+            - ICICI
+            - SBI 
+            - AXIS
+            - HDFC
+        depositAmount:
+          required: true
+          type: integer
+      example:
+        {
+          "accountNum": "1234567892",
+          "bank": "HDFC",
+          "depositAmount" : 3000
+        }
+    responses:
+            200:
+              body:
+                application/json:
+                  example:
+                      {"status" : "Amount deposit successfully done for the Account Number 1234567892"
+                      }
+      
+                          
+         
+
+
+        

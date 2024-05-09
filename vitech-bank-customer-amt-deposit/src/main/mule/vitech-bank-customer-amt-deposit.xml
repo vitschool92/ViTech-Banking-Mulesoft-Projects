@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+    <http:listener-config name="vitech-bank-customer-amt-deposit-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${http.port}" />
+    </http:listener-config>
+    <apikit:config name="vitech-bank-customer-amt-deposit-config" api="vitech-bank-customer-amt-deposit.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <configuration-properties doc:name="Configuration properties" doc:id="5ecbccbf-7e89-4ccb-8b74-edf93d041c91" file="myConfigs-dev.yaml" />
+	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="58768341-1b17-44c0-9086-c498d5e45453" >
+		<snowflake:snowflake-connection accountName="${db.sfc.accountname}" warehouse="${db.sfc.warehouse}" database="${db.sfc.database}" schema="${db.sfc.schema}" user="${db.sfc.user}" password="${db.sfc.password}" role="${db.sfc.role}" />
+	</snowflake:snowflake-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="0cc91da3-293e-45e6-ad83-3e6e09733cbc" >
+		<email:smtp-connection host="${email.config.host}" port="${email.config.port}" user="${email.config.user}" password="${email.config.password}" timeoutUnit="NANOSECONDS" >
+			<pooling-profile />
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<ee:object-store-caching-strategy name="Caching_Strategy" doc:name="Caching Strategy" doc:id="e074e945-403f-48f8-8d3e-26e4688e4107" keyGenerationExpression="#[payload.accountNum]" />
+	<flow name="vitech-bank-customer-amt-deposit-main">
+        <http:listener config-ref="vitech-bank-customer-amt-deposit-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="vitech-bank-customer-amt-deposit-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="vitech-bank-customer-amt-deposit-console">
+        <http:listener config-ref="vitech-bank-customer-amt-deposit-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="vitech-bank-customer-amt-deposit-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <sub-flow name="vitech-bank-customer-amt-deposit-email-flow" doc:id="4424b578-6051-4686-b92a-1f0a39104c9d" >
+		<logger level="INFO" doc:name="Before send an email" doc:id="ce5339b6-8ced-4cce-9d54-9aadc05c92c4" message="----------Before send an email-----------"/>
+		<set-variable value='#[%dw 2.0&#10;output application/json&#10;---&#10;"This is to inform you that your account has been Credited "++ vars.inputPayload.depositAmount as Number ++" today and total balance is "++ vars.totalAmt as Number]' doc:name="emailBody" doc:id="b138ce78-3df8-4eae-8b77-3a2fbb41ab4a" variableName="emailBody"/>
+		<parse-template doc:name="Parse Template" doc:id="24d5bdb2-3441-4950-a735-1868507f04aa" >
+			<content >&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+&lt;head&gt;
+	&lt;title&gt;
+		HTML table border Attribute
+	&lt;/title&gt;
+	&lt;style&gt;
+		body {
+			text-align: center;
+		}
+
+		table {
+			margin: 0 auto;
+			height: 20vh;
+			width: 40vh;
+		}
+
+		h1 {
+			color: green;
+		}
+        h5 {
+			color: red;
+		}
+	&lt;/style&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+	&lt;h1&gt;Welcome to VITech Talks&lt;/h1&gt;
+	&lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+    &lt;a href=&quot;https://www.youtube.com/@vitechtalks6017&quot; target=&quot;_blank&quot;&gt;Visit VITechTalks!&lt;/a&gt; 
+    &lt;h5&gt;NOTE: This is an automated email please do not reply to this email&lt;/h5&gt;
+	
+&lt;/body&gt;
+
+&lt;/html&gt;
+</content>
+		</parse-template>
+		<email:send doc:name="Email send for Deposit amount" doc:id="0dbf0d0a-4d79-4bfe-8fe6-5f70c2ecb7da" config-ref="Email_SMTP" subject='#["Amount deposit done for "++ vars.inputPayload.bank as String ++" is done today !"]'>
+			<email:to-addresses >
+				<email:to-address value="#[vars.email]" />
+			</email:to-addresses>
+			<email:cc-addresses />
+			<email:bcc-addresses />
+			<email:body contentType="text/html" encoding="UTF-8"/>
+		</email:send>
+		<logger level="INFO" doc:name="email sent sucessfully " doc:id="58296647-1370-48ab-9cd9-a48b494961d7" message="----------email sent sucessfully ----------" />
+	</sub-flow>
+	<flow name="put:\deposit:application\json:vitech-bank-customer-amt-deposit-config">
+        <logger level="INFO" doc:name="API Start" doc:id="f5de1dd0-9f79-451f-b89b-6af2e1f56b04" message="-----------Deposit API triggerged -----#[payload]"/>
+		<set-variable value="#[%dw 2.0&#10;var inp= []&#10;output application/json&#10;---&#10;inp &lt;&lt; payload reduce ((item, accumulator) -&gt;  item )]" doc:name="inputPayload" doc:id="4469d5ee-0f0a-4bf4-9084-ebd329ddb68c" variableName="inputPayload"/>
+		<snowflake:select doc:name="Select" doc:id="9ab31a0c-ac47-4e76-b2cf-0511841915eb" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[select * from bank_transactions where custaccnum =:bankAcctNum and bankname =:bankType]]></snowflake:sql>
+			<snowflake:input-parameters><![CDATA[#[{
+	"bankAcctNum" : payload.accountNum,
+	"bankType" : payload.bank
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<choice doc:name="Choice" doc:id="e6281724-3172-4bb6-80bd-6f9c57a05b4b" >
+			<when expression="#[sizeOf(payload) &gt;= 1]">
+				<logger level="INFO" doc:name="record found" doc:id="eeeac8cd-5344-466d-b9b3-f7c39f2abf30" message="------------Record  found from db before update------------------#[payload.TOTALBALANCE]" />
+				<set-variable value="#[payload.MAILID[0] as String]" doc:name="email" doc:id="d1b1f832-bfda-4c10-84e7-e3387d34f0bd" variableName="email" />
+				<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;vars.inputPayload.depositAmount as Number + payload.TOTALBALANCE[0]]" doc:name="totalAmt" doc:id="5161c291-1b11-4ca0-a87c-fc77a28f49ac" variableName="totalAmt"/>
+				<snowflake:update doc:name="Update" doc:id="02c6279b-c32c-419f-941f-f466ee9c9c85" config-ref="Snowflake_Config">
+					<snowflake:sql><![CDATA[update bank_transactions 
+    set TOTALBALANCE =:totalAmount 
+where custaccnum =:bankAcct and bankname =:bankType ]]></snowflake:sql>
+					<snowflake:input-parameters><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"totalAmount": vars.inputPayload.depositAmount as Number + payload.TOTALBALANCE[0],
+	"bankAcct": payload.CUSTACCNUM[0] ,
+	"bankType": payload.BANKNAME[0]
+}]]]></snowflake:input-parameters>
+				</snowflake:update>
+				<choice doc:name="Choice" doc:id="e6a3bec3-09d8-4f19-a4a2-38ce0b3468fc">
+					<when expression="#[payload.affectedRows &gt;= 1]">
+						<flow-ref doc:name="GMail send Flow Reference" doc:id="e49039c8-7319-489d-8003-3891ccb4f875" name="vitech-bank-customer-amt-deposit-email-flow" />
+						<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "Amount deposit successfully done for the Account Number -"++ vars.inputPayload.accountNum as Number ++" With Bank- "++ vars.inputPayload.bank as String  
+  }]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Update not happend" doc:id="ab4f6483-8afa-42ac-861c-152c4ef108dc">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: " Account is identified but Amount deposit is not successfully done for the Account Number -"++ vars.inputPayload.accountNum as Number ++" With Bank- "++ vars.inputPayload.bank as String  
+  }]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="record not found" doc:id="5c47119a-b84a-46e5-b9d9-765306871342" message="------------Record not found for the given input ------------------" />
+				<ee:transform doc:name="Message Record Not found" doc:id="3cda1db9-e8a3-4ec9-83ff-ff5397c6f469">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"Welcome to VITech Talks....Your account number -"++ vars.inputPayload.accountNum as Number ++"is not exists in database with bank -"++ vars.inputPayload.bank as String ++" records !please try with different account Number"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+</mule>

@@ -1,0 +1,21 @@
+
+http:
+  port: "8081"
+  
+db:
+ sfc:
+  accountname: "jz45615.central-india.azure"
+  warehouse: "COMPUTE_WH"
+  databse: "VITECH"
+  schema: "BFS"
+  user: "1234"
+  password: "1234"
+  role: "accountadmin"
+
+email:
+  conf:
+    host: "smtp.gmail.com" 
+    port: "587"
+    user: "123456"
+    password: "xxxxxxx"
+    

@@ -1,0 +1,24 @@
+#%RAML 1.0 DataType
+
+        properties:
+          user:
+            default: admin
+          password:
+            default: admin
+          accountNum:
+            required: true
+            type: string
+            minLength: 10
+            maxLength: 10
+          bank:
+            required: true 
+            enum:
+              - HDFC
+              - SBI
+              - AXIS
+              - ICICI
+          acctStatus:
+            required: true
+            enum:
+              - Lock
+              - Unlock 

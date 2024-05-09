@@ -1,0 +1,48 @@
+#%RAML 1.0
+title: vitech-bank-customer-check-balance
+version: v1
+protocols:
+  - HTTPS
+  - HTTP
+description: "This is an API to check the customer account balance"
+
+securitySchemes:
+  secure: !include /security/securityScheme.raml
+securedBy:
+  - secure
+
+/checkBalance:
+  get:
+    queryParameters:
+      bank:
+        required: true
+        enum:
+          - HDFC
+          - ICICI
+          - AXIS 
+          - SBI 
+      acctType:
+        required: true 
+        enum:
+          - savings
+          - current
+      accountNum: 
+        required: true
+        type: string
+        maxLength: 10
+        minLength: 10
+      atmPin:
+        required: true 
+        type: string
+        maxLength: 4
+        minLength: 4
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              {
+                "status" : "Your total balance is 123.00 as on 14-FEB-2024"
+                }
+
+        

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<configuration-properties doc:name="Configuration properties" doc:id="29c18427-ff34-49f6-b100-510907759c0c" file="myConfig-dev.yaml" />
+	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="98d01ad2-37fc-4483-b4e2-8cf538119087" >
+		<snowflake:snowflake-connection accountName="${db.sfc.accountname}" warehouse="${db.sfc.warehouse}" database="${db.sfc.database}" schema="${db.sfc.schema}" user="${db.sfc.user}" password="${db.sfc.password}" role="${db.sfc.role}" />
+	</snowflake:snowflake-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="9dcdeaea-0ff2-4de9-99ba-9a83f222b8e3" >
+		<email:smtp-connection host="${email.conf.host}" port="${email.conf.port}" user="${email.conf.user}" password="${email.conf.password}" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<flow name="vitech-bank-sch-lock-cust-acctFlow" doc:id="0390e51a-d4b1-4d34-a882-ebedcc6de20d" >
+		<scheduler doc:name="Scheduler" doc:id="5cbff83c-5bf3-4ac7-b9a9-397cba38b864" >
+			<scheduling-strategy >
+				<cron expression="0 30 12 ? * *" />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="e147c0a8-b919-40f0-b764-ccd5e39d41cc" message="-----------Schulder Started for Locked accounts emails-------------------"/>
+		<snowflake:select doc:name="Select Locked accounts" doc:id="a5a1e8ec-5b8d-4b6c-b3fd-5239a6eb1945" config-ref="Snowflake_Config">
+			<snowflake:sql ><![CDATA[select * from bank_transactions where accountstatus = 'Locked']]></snowflake:sql>
+		</snowflake:select>
+		<foreach doc:name="For Each" doc:id="392a5913-95c2-41d7-aab0-19da3541677a" >
+			<logger level="INFO" doc:name="before send an email" doc:id="032d3f30-8a20-44a1-95fe-05deb97a7898" message="inside for each before sending an email" />
+			<set-variable value='#[%dw 2.0&#10;output application/json&#10;---&#10;"Your Account is locked for temporarily with account Number -"++ payload.custaccnum as String ++"from Bank - "++ payload.bankname as String ++ " if you want to unlock please use our website (or) contact customer care-040-123456"]' doc:name="emailBody" doc:id="d2e17c24-222e-49bf-832b-f7c9ebbf07a6" variableName="emailBody"/>
+			<set-variable value="#[payload.MAILID]" doc:name="email" doc:id="a23b5a6a-94d3-4c4b-83eb-0ddd58d70050" variableName="email"/>
+			<parse-template doc:name="Parse Template" doc:id="af9c3828-e367-4dd6-b4dd-8c679592dafc">
+				<content >&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+&lt;head&gt;
+	&lt;title&gt;
+		HTML table border Attribute
+	&lt;/title&gt;
+	&lt;style&gt;
+		body {
+			text-align: center;
+		}
+
+		table {
+			margin: 0 auto;
+			height: 20vh;
+			width: 40vh;
+		}
+
+		h1 {
+			color: green;
+		}
+        h5 {
+			color: red;
+		}
+	&lt;/style&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+	&lt;h1&gt;Welcome to VITech Talks&lt;/h1&gt;
+	&lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+    &lt;a href=&quot;https://www.youtube.com/@vitechtalks6017&quot; target=&quot;_blank&quot;&gt;Visit VITechTalks!&lt;/a&gt; 
+    &lt;h5&gt;NOTE: This is an automated email please do not reply to this email&lt;/h5&gt;
+	
+&lt;/body&gt;
+
+&lt;/html&gt;
+</content>
+			</parse-template>
+			<email:send doc:name="email send" doc:id="6e6bb55b-5ee5-4863-98b2-038e5bff1d25" config-ref="Email_SMTP" subject="Your account Status - Locked">
+				<email:to-addresses>
+					<email:to-address value="#[vars.email]" />
+				</email:to-addresses>
+				<email:body contentType="text/html" encoding="UTF-8">
+				</email:body>
+			</email:send>
+			<logger level="INFO" doc:name="after sucess email" doc:id="9f7a3fef-5680-4ad3-888d-c328c035a20b" message="email sent sucessfully for #[vars.email]" />
+		</foreach>
+	</flow>
+</mule>

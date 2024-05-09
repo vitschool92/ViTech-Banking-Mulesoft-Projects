@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>
+		Welcome To VITech Talks
+	</title>
+	<style>
+		body {
+			text-align: center;
+		}
+
+		table {
+			margin: 0 auto;
+			height: 20vh;
+			width: 40vh;
+		}
+
+		table,
+		th,
+		td {
+			border-collapse: collapse;
+		}
+
+		h1 {
+			color: green;
+		}
+        h6 {
+			color: red;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Welcome To VITech Talks</h1>
+
+
+		<h3>#[vars.mailBody]</h3>
+
+	
+    <h6>Note: This is an automated E-mail please do not reply to this email. </h6>
+</body>
+
+</html>

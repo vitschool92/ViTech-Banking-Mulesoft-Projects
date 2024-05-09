@@ -1,0 +1,69 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- feature_release1
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+
+steps:
+- task: Cache@2
+  displayName: Cache Maven local repo
+  inputs:
+    key: 'maven | "$(Agent.OS)" | **/pom.xml'
+    restoreKeys: |
+      maven | "$(Agent.OS)"
+      maven
+    path: $(MAVEN_CACHE_FOLDER)
+- script: mvn install -B -e
+
+- task: Maven@3
+  displayName: Build
+  inputs:
+    options: '-DskipTests'
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx3072m $(MAVEN_OPTS)'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '11.0'
+    jdkArchitectureOption: 'x64'
+    goals: 'package'
+
+- task: MavenAuthenticate@0
+  inputs:
+    artifactsFeeds: 'vitech-mulesoft'
+    mavenServiceConnections: 'Mulesoft Enterprise'
+
+- task: Maven@3
+  displayName: Test
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx3072m $(MAVEN_OPTS)'
+    goals: 'test'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    testRunTitle: 'Azure Pipeline Test Report'
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: false
+- task: Maven@3
+  displayName: Deploy
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx3072m $(MAVEN_OPTS)'
+    goals: 'deploy'
+    options: '-DskipTests -DmuleDeploy -Danypointusername=$(ANYPOINT_USER) -Danypointpassword=$(ANYPOINT_PWD)'
+    publishJUnitResults: false
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: false

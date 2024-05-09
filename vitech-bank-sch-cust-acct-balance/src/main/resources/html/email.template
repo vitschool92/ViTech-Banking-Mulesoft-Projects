@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>
+		HTML table border Attribute
+	</title>
+	<style>
+		body {
+			text-align: center;
+		}
+
+		table {
+			margin: 0 auto;
+			height: 20vh;
+			width: 40vh;
+		}
+
+		h1 {
+			color: green;
+		}
+        h5 {
+			color: red;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Welcome to VITech Talks</h1>
+	<h3>#[vars.emailBody]</h3>
+    
+    <a href="https://www.youtube.com/@vitechtalks6017" target="_blank">Visit VITechTalks!</a> 
+    <h5>NOTE: This is an automated email please do not reply to this email</h5>
+	
+</body>
+
+</html>
